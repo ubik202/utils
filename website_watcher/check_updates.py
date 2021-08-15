@@ -1,6 +1,7 @@
 import re
 import time
 import requests
+from bs4 import BeautifulSoup
 from datetime import date, datetime,timedelta
 
 #clean all special characters from a string
@@ -31,7 +32,22 @@ def difference(string_a,string_b):
 #retrieve an html document from the given url
 def get_page(url):
     output = clean_html(requests.get(url).text).strip()
-    return output
+    soup = BeautifulSoup(output, features="html.parser")
+
+    # kill all script and style elements
+    for script in soup(["script", "style"]):
+         temp = script.extract()    # rip it out
+     
+    # get text
+    text = soup.get_text()
+     
+    # break into lines and remove leading and trailing space on each
+    lines = (line.strip() for line in text.splitlines())
+    # break multi-headlines into a line each
+    chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+    # drop blank lines
+    text = '\n'.join(chunk for chunk in chunks if chunk)
+    return text.strip()
 
 #given the url of a website, check if it has been updated, by comparing it to a reference snapshot
 def check_updated(url):
@@ -40,6 +56,7 @@ def check_updated(url):
         ref_html = open('refs/%s.html' % clean(url),'r').read()
     except Exception as e:
         no_ref=1
+
         ref_html = ""
     new_html = get_page(url)
     if not no_ref:

@@ -39,18 +39,21 @@ def create_distance_matrix(data):
   q, r = divmod(num_addresses, max_rows)
   dest_addresses = addresses
   distance_matrix = []
+  duration_matrix = []
   # Send q requests, returning max_rows rows per request.
   for i in range(q):
     origin_addresses = addresses[i * max_rows: (i + 1) * max_rows]
     response = send_request(origin_addresses, dest_addresses, API_key)
     distance_matrix += build_distance_matrix(response)
+    duration_matrix += build_duration_matrix(response)
 
   # Get the remaining remaining r rows, if necessary.
   if r > 0:
     origin_addresses = addresses[q * max_rows: q * max_rows + r]
     response = send_request(origin_addresses, dest_addresses, API_key)
     distance_matrix += build_distance_matrix(response)
-  return distance_matrix
+    duration_matrix += build_duration_matrix(response)
+  return distance_matrix,duration_matrix
 
 def send_request(origin_addresses, dest_addresses, API_key):
   """ Build and send request for the given origin and destination addresses."""
@@ -77,3 +80,10 @@ def build_distance_matrix(response):
     row_list = [row['elements'][j]['distance']['value'] for j in range(len(row['elements']))]
     distance_matrix.append(row_list)
   return distance_matrix
+
+def build_duration_matrix(response):
+  duration_matrix = []
+  for row in response['rows']:
+    row_list = [row['elements'][j]['duration']['value'] for j in range(len(row['elements']))]
+    duration_matrix.append(row_list)
+  return duration_matrix

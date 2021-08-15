@@ -3,6 +3,8 @@ import urllib.request as urllib
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 
+addresses=[]
+
 def send_request(origin_addresses, dest_addresses, API_key):
   """ Build and send request for the given origin and destination addresses."""
   def build_address_str(addresses):
@@ -30,6 +32,7 @@ def send_request(origin_addresses, dest_addresses, API_key):
 #  return distance_matrix
 
 def create_data_model():
+    global addresses
     """Stores the data for the problem."""
     data = {}
 #    data['distance_matrix'] = [
@@ -48,12 +51,16 @@ def create_data_model():
 #        [1972, 579, 1260, 987, 371, 999, 701, 2099, 600, 1162, 1200, 504, 0],
 #    ]  # yapf: disable
     dm_data = distance_matrix.create_data()
-    data['distance_matrix'] = distance_matrix.create_distance_matrix(dm_data)
+    addresses=dm_data['addresses']
+    distance_mtx ,duration_mtx = distance_matrix.create_distance_matrix(dm_data)
+    data['distance_matrix'] = distance_mtx
+    data['duration_matrix'] = duration_mtx
     data['num_vehicles'] = 1
     data['depot'] = 0
     return data
 
 def print_solution(manager, routing, solution):
+    address_output=""
     """Prints solution on console."""
     print('Objective: {} miles'.format(solution.ObjectiveValue()))
     index = routing.Start(0)
@@ -61,20 +68,23 @@ def print_solution(manager, routing, solution):
     route_distance = 0
     while not routing.IsEnd(index):
         plan_output += ' {} ->'.format(manager.IndexToNode(index))
+        address_output += addresses[manager.IndexToNode(index)] +" -> "
         previous_index = index
         index = solution.Value(routing.NextVar(index))
         route_distance += routing.GetArcCostForVehicle(previous_index, index, 0)
     plan_output += ' {}\n'.format(manager.IndexToNode(index))
+    address_output += addresses[manager.IndexToNode(index)]
     print(plan_output)
+    print(address_output)
     plan_output += 'Route distance: {}miles\n'.format(route_distance)
 
-def main():
-    """Entry point of the program."""
+
+def run(dist_option='distance'):
     # Instantiate the data problem.
     data = create_data_model()
 
     # Create the routing index manager.
-    manager = pywrapcp.RoutingIndexManager(len(data['distance_matrix']),
+    manager = pywrapcp.RoutingIndexManager(len(data[dist_option+'_matrix']),
                                            data['num_vehicles'], data['depot'])
 
     # Create Routing Model.
@@ -86,7 +96,7 @@ def main():
         # Convert from routing variable Index to distance matrix NodeIndex.
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        return data['distance_matrix'][from_node][to_node]
+        return data[dist_option+'_matrix'][from_node][to_node]
 
     transit_callback_index = routing.RegisterTransitCallback(distance_callback)
 
@@ -105,6 +115,10 @@ def main():
     if solution:
         print_solution(manager, routing, solution)
 
+def main():
+    """Entry point of the program."""
+    run('distance')
+    run('duration')
 
 if __name__ == '__main__':
     main()
